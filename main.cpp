@@ -187,35 +187,3 @@ void printPost (Tree* tree){
   }
 }
 
-int main(){
-  char input [200];
-  char infix [200];
-  token postfix[200];
-  cout<<"Enter your expression"<<endl;
-  cin.getline(infix, 200);
-  int numtokens = convert(infix,postfix);
-  Tree* tree = makeTree(postfix,--numtokens);
-  bool run = true;
-  while(run == true){
-    cout<<"Prefix(P) Infix(I) Postfix(X) Quit(Q)"<<endl;
-        cin>>input;
-        if(input[0] == 'P'){
-          printPre(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'I'){
-          printIn(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'X'){
-          printPost(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'Q'){
-          run = false;
-        }
-        else{
-          cout<<"Not a valid command."<<endl;
-        }
-    }
-}
