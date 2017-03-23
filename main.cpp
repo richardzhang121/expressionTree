@@ -18,6 +18,9 @@ Infix traversal: Infix(left), Root, Infix(Right)
 Postfix traversal: Postfix(left), Postfix(Right), Root
 */
 
+// Main.cpp
+// Takes an infix expression and converts to an expression tree
+
 #include <iostream>
 #include <string.h>
 #include "Node.h"
@@ -147,6 +150,38 @@ int convert(char* infix, token* postfix){
       pop(opstack);
     }
     // if operator
+    else if(isOperator(infix[i])){
+      // if stack is empty or (, push to stack
+      if(empty(opstack) || peak(opstack)=='('){
+        push(opstack, infix[i]);
+      }
+      else{
+        // pop stack until if operator has higher precedence or rightAsso, then push to stack
+        while(!empty(opstack) &&
+              (precedence(infix[i], peak(opstack)) < 0 ||
+               precedence(infix[i], peak(opstack)) == 0 && !isRightAsso(infix[i])
+              )){
+
+          postfix[numtokens].value[0] = pop(opstack);
+          postfix[numtokens].value[1] = '\0';
+          numtokens++;
+        }
+        push(opstack, infix[i]);
+      }
+    }
+  }
+  if(numchars>0){
+    top[numchars] = '\0';
+    strcpy(postfix[numtokens].value, top);
+    numtokens++;
+  }
+  // pop and print remaining operators on stack
+  while(!empty(opstack)){
+    postfix[numtokens].value[0] = pop(opstack);
+    postfix[numtokens].value[1] = '\0';
+    numtokens++;
+  }
+  return numtokens;
 }
 
 // creates the expression tree from the postfix expression recursively
@@ -187,3 +222,35 @@ void printPost (Tree* tree){
   }
 }
 
+int main(){
+  char input [200];
+  char infix [200];
+  token postfix[200];
+  cout<<"Enter your expression"<<endl;
+  cin.getline(infix, 200);
+  int numtokens = convert(infix,postfix);
+  Tree* tree = makeTree(postfix,--numtokens);
+  bool run = true;
+  while(run == true){
+    cout<<"Prefix(P) Infix(I) Postfix(X) Quit(Q)"<<endl;
+        cin>>input;
+        if(input[0] == 'P'){
+          printPre(tree);
+          cout<<endl;
+        }
+        else if(input[0] == 'I'){
+          printIn(tree);
+          cout<<endl;
+        }
+        else if(input[0] == 'X'){
+          printPost(tree);
+          cout<<endl;
+        }
+        else if(input[0] == 'Q'){
+          run = false;
+        }
+        else{
+          cout<<"Not a valid command."<<endl;
+        }
+    }
+}
