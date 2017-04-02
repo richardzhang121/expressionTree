@@ -21,236 +21,151 @@ Postfix traversal: Postfix(left), Postfix(Right), Root
 // Main.cpp
 // Takes an infix expression and converts to an expression tree
 
-#include <iostream>
-#include <string.h>
 #include "Node.h"
-#include "Tree.h"
+#include "Stack.h"
+#include "BinaryNode.h"
+#include <cstdlib>
+#include <cstring>
+
 
 using namespace std;
 
-// holds a token
-struct token{
-  char value[10];
-};
+bool isOperator(char c); //Checks if its a +-/*^
+int precedence(char c); //Pemdos 
+Stack* shuntingYard(char* input); //converts an equation string into a stack
+BinaryNode* makeTree(Stack* stack); //Converts an equation stack 
+void print (BinaryNode* node, int indent = 0); //prints the stack out as a tree
+void printPostfix (BinaryNode* node);//prints the tree out as a postfix equation
+void printPrefix (BinaryNode* node);//prints the tree out as a prefix equation
+void printInfix(BinaryNode* nodes);;//prints the tree out as an infix without ()
 
-// pushes an operator onto stack
-void push(Node*& stack, char newval){
-	Node* newnode = new Node(newval);
-	newnode->setNext(stack);
-	stack = newnode;
+
+int main(){
+  char input[50];
+  cin.get(input, 50); //get the input and start the algorithim
+  Stack* stack = shuntingYard(input); //convets the input into a stack
+  BinaryNode* head = makeTree(stack);// convets the stack into a tree
+ 
+  //print everything out 
+  cout << "Tree:" << endl;
+  print(head);
+  cout << "\nPostfix:  " << endl;
+  printPostfix(head);
+  cout << endl << "\nPrefix:" << endl;
+  printPrefix(head);
+  cout << endl << "\nInfix:" << endl;
+  printInfix(head);
+  cout << endl;
 }
-// gets value and removes operator from top of stack
-char pop(Node*& stack){
-	char op = stack->getVal();
-	stack = stack->getNext();
-	return op;
+//print tree
+void print(BinaryNode* node, int indent){ 
+  
+  if (node->getRight())
+    print(node->getRight(),indent+1);
+  for(int j = 0; j <= indent; j++){
+    cout << "   ";
+  }
+  node->printData();
+  cout << endl;
+  if (node->getLeft()) 
+    print(node->getLeft(),indent+1);
 }
-// gets value from top of stack
-char peak(Node*& stack){
-  return stack->getVal();
+//print the equation types
+void printPostfix (BinaryNode* node){
+  if (node->getType() == 1){
+    printPostfix(node->getRight());
+    printPostfix(node->getLeft());
+  }
+  node->printData();
 }
-// checks if stack is empty
-bool empty(Node*& stack){
-	return (stack==NULL);
+void printPrefix (BinaryNode* node){
+  node->printData();
+  if (node->getType() == 1){
+    printPrefix(node->getRight());
+    printPrefix(node->getLeft());
+  }
 }
-// checks if token is operator
-bool isOperator (char c){
-  if(c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '(' || c == ')'){
+void printInfix(BinaryNode* node){
+  if (node->getType() == 1){
+    printInfix(node->getRight());
+    node->printData();
+    printInfix(node->getLeft());
+  }
+  else{
+    node->printData();
+  }
+  
+}
+//title
+BinaryNode* makeTree(Stack* stack){
+  BinaryNode* binaryNode;
+  if (stack->peek()->getType() == 1){
+    binaryNode = new BinaryNode(stack->pop()->getCharData());
+    binaryNode->setLeft(makeTree(stack));
+    binaryNode->setRight(makeTree(stack));
+  }
+  else{
+    binaryNode = new BinaryNode(stack->pop()->getIntData());
+  
+  }
+  return binaryNode;
+}
+
+//Turns input into a stack
+Stack* shuntingYard(char* input){ // the actuall shunting yard thing
+  int i = 0;
+  Stack* operatorStack = new Stack(); 
+  Stack* outputStack = new Stack();
+  while (input[i]){ //run through the string and pick it apart
+    if(isdigit(input[i])){ // if its a number, put it on the output stack
+      outputStack->push(new Node(atoi(&input[i])));
+      while(isdigit(input[i+1])){ //move it off the number
+	i++;
+      }
+    }
+    else if (isOperator(input[i])){ //if its a * / + =
+      while(operatorStack->peek()){ 
+	if (precedence(input[i]) >= precedence(operatorStack->peek()->getCharData())){
+	    break;
+	  }
+	outputStack->push(operatorStack->pop()); //add the current operator to the operatorStack
+	  }
+      operatorStack->push(new Node(input[i]));
+      }
+    else if (input[i] == '('){ //simply add the ( to the operator stack
+      operatorStack->push(new Node(input[i]));
+    }
+    else if (input[i] == ')'){ //if its a ) add all the operators in the stack to the output
+      while(operatorStack->peek()->getCharData() != '('){ //until theres a (
+	outputStack->push(operatorStack->pop());
+      }
+      delete operatorStack->pop();
+    }
+    i++;
+  }
+  while(operatorStack->peek()){ //put the operator stack on the output stack
+    outputStack->push(operatorStack->pop());
+  }
+  delete operatorStack;
+  return outputStack;
+}
+bool isOperator(char c){
+  if (c == '-' ||
+      c == '+' ||
+      c == '^' ||
+      c == '*' ||
+      c == '/'){
     return true;
   }
   return false;
 }
-// checks if left parenthesis
-bool isLeft (char c){
-  if(c == '('){
-    return true;
-  }
-  else{
-    return false;
-  }
-}
-// checks if right parenthesis
-bool isRight (char c){
-  if(c == ')'){
-    return true;
-  }
-  else{
-    return false;
-  }
-}
-// gets weight of operator (for precedence)
-int getWeight (char c){
-  int weight = -1;
-  if (c == '+' || c == '-') {
-    weight = 1;
-  }
-  else if (c == '*' || c == '/'){
-    weight = 2;
-  }
-  else if (c == '^'){
-    weight = 3;
-  }
-  return weight;
-}
-// checks if two operators have lower/equal/higher precednce
-int precedence(char a, char b){
-// -1: a<b
-// 0: a=b
-// 1: a>b
-  int aWeight = getWeight(a);
-  int bWeight = getWeight(b);
-  if (aWeight < bWeight){
-    return -1;
-  }
-  else if (aWeight == bWeight){
-    return 0;
-  }
-  else {
-    return 1;
-  }
-}
-// checks if operator is right associative
-bool isRightAsso(char c){
-  return(c == '^');
-}
-
-// convert infix expression into postfix
-int convert(char* infix, token* postfix){
-  int numtokens = 0;
-  Node* opstack = NULL;
-  char top[10];
-  int numchars = 0;
-  for(int i = 0; infix[i]!='\0'; i++){
-    // if operand, then print
-    if(isdigit(infix[i])){
-      top[numchars] = infix[i];
-      numchars++;
-    }
-    // if space, end of token
-    else if(infix[i] == ' '){
-      // print if operand
-      if(numchars>0){
-        top[numchars] = '\0';
-        strcpy(postfix[numtokens].value, top);
-        numtokens++;
-        numchars = 0;
-      }
-    }
-    // if left, push to stack
-    else if(isLeft(infix[i])){
-      push(opstack, infix[i]);
-    }
-    // if right, discard and pop/print stack until left and discard left
-    else if(isRight(infix[i])){
-      while(peak(opstack)!='('){
-        postfix[numtokens].value[0] = pop(opstack);
-        postfix[numtokens].value[1] = '\0';
-        numtokens++;
-      }
-      pop(opstack);
-    }
-    // if operator
-    else if(isOperator(infix[i])){
-      // if stack is empty or (, push to stack
-      if(empty(opstack) || peak(opstack)=='('){
-        push(opstack, infix[i]);
-      }
-      else{
-        // pop stack until if operator has higher precedence or rightAsso, then push to stack
-        while(!empty(opstack) &&
-              (precedence(infix[i], peak(opstack)) < 0 ||
-               precedence(infix[i], peak(opstack)) == 0 && !isRightAsso(infix[i])
-              )){
-
-          postfix[numtokens].value[0] = pop(opstack);
-          postfix[numtokens].value[1] = '\0';
-          numtokens++;
-        }
-        push(opstack, infix[i]);
-      }
-    }
-  }
-  if(numchars>0){
-    top[numchars] = '\0';
-    strcpy(postfix[numtokens].value, top);
-    numtokens++;
-  }
-  // pop and print remaining operators on stack
-  while(!empty(opstack)){
-    postfix[numtokens].value[0] = pop(opstack);
-    postfix[numtokens].value[1] = '\0';
-    numtokens++;
-  }
-  return numtokens;
-}
-
-// creates the expression tree from the postfix expression recursively
-Tree* makeTree(token* postfix, int& curr){
-    Tree* newTree = new Tree(postfix[curr].value);
-    curr--;
-    if(isOperator(*newTree->getVal())){
-      newTree->setRight(makeTree(postfix,curr));
-      newTree->setLeft(makeTree(postfix,curr));
-    }
-    return newTree;
-}
-
-// print in prefix (root left right)
-void printPre (Tree* tree){
-  if(tree != NULL){
-    cout<<tree->getVal()<<" ";
-    printPre(tree->getLeft());
-    printPre(tree->getRight());
-  }
-}
-
-// print in infix (left root right)
-void printIn (Tree* tree){
-  if(tree != NULL){
-    printIn(tree->getLeft());
-    cout<<tree->getVal()<<" ";
-    printIn(tree->getRight());
-  }
-}
-
-// print in postfix (left right root)
-void printPost (Tree* tree){
-  if(tree != NULL){
-    printPost(tree->getLeft());
-    printPost(tree->getRight());
-    cout<<tree->getVal()<<" ";
-  }
-}
-
-int main(){
-  char input [200];
-  char infix [200];
-  token postfix[200];
-  cout<<"Enter your expression"<<endl;
-  cin.getline(infix, 200);
-  int numtokens = convert(infix,postfix);
-  Tree* tree = makeTree(postfix,--numtokens);
-  bool run = true;
-  while(run == true){
-    cout<<"Prefix(P) Infix(I) Postfix(X) Quit(Q)"<<endl;
-        cin>>input;
-        if(input[0] == 'P'){
-          printPre(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'I'){
-          printIn(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'X'){
-          printPost(tree);
-          cout<<endl;
-        }
-        else if(input[0] == 'Q'){
-          run = false;
-        }
-        else{
-          cout<<"Not a valid command."<<endl;
-        }
-    }
+int precedence(char c){ // gives things piority pemdos and all that
+  int precedence[256];
+  precedence['-'] = 1;
+  precedence['+'] = 1;
+  precedence['*'] = 2;
+  precedence['/'] = 2;
+  precedence['^'] = 3;
+  precedence['('] = -1;
+  return precedence[c];
 }
